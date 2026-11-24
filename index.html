@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>7. Sınıf Maarif Test & Telafi İstasyonu</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <style>
+    * { font-family: 'Plus Jakarta Sans', sans-serif; -webkit-tap-highlight-color: transparent; }
+    body { background-color: #F4F6FF; color: #1E293B; overflow-x: hidden; }
+
+    .btn-3d {
+      transition: transform 0.12s ease, box-shadow 0.12s ease;
+      box-shadow: 0 4px 0 rgba(15, 23, 42, 0.14);
+    }
+    .btn-3d:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 rgba(15, 23, 42, 0.14);
+    }
+
+    @keyframes celebratePop {
+      0% { opacity: 0; transform: scale(0.55) translateY(20px); }
+      65% { opacity: 1; transform: scale(1.06) translateY(-4px); }
+      100% { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    @keyframes trophyBounce {
+      0%, 100% { transform: translateY(0) rotate(-3deg); }
+      50% { transform: translateY(-9px) rotate(3deg); }
+    }
+    @keyframes sparkleTwinkle {
+      0%, 100% { opacity: 0.35; transform: scale(0.8) rotate(0deg); }
+      50% { opacity: 1; transform: scale(1.25) rotate(25deg); }
+    }
+    @keyframes confettiFall {
+      0% { transform: translateY(-12vh) rotate(0deg); opacity: 1; }
+      100% { transform: translateY(105vh) rotate(720deg); opacity: 0.85; }
+    }
+
+    .animate-celebrate-pop { animation: celebratePop 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+    .animate-trophy-bounce { animation: trophyBounce 2.1s ease-in-out infinite; }
+    .animate-sparkle { animation: sparkleTwinkle 1.6s ease-in-out infinite; }
+    .confetti-piece {
+      position: fixed;
+      top: -24px;
+      z-index: 60;
+      pointer-events: none;
+      border-radius: 3px;
+      animation: confettiFall linear forwards;
+    }
+
+    .rainbow-text {
+      background: linear-gradient(90deg, #4F46E5, #EC4899, #F59E0B, #10B981, #3B82F6);
+      background-size: 200% auto;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: rainbowShift 3.5s linear infinite;
+    }
+    @keyframes rainbowShift {
+      0% { background-position: 0% center; }
+      100% { background-position: 200% center; }
+    }
+  </style>
+</head>
+<body class="min-h-screen">
+  <div id="confetti-layer"></div>
+  <div id="app" class="min-h-screen flex flex-col"></div>
+
+  <script>
+    // =========================================================================
+    // 1. FIREBASE YAPILANDIRMASI (maarif-7-sinif)
+    // =========================================================================
+    const FIREBASE_CONFIG = {
+      apiKey: "AIzaSyBIZFeC-8S-acyukepSMWPZl2Oi9DnGyoY",
+      authDomain: "maarif-7-sinif.firebaseapp.com",
+      projectId: "maarif-7-sinif",
+      storageBucket: "maarif-7-sinif.firebasestorage.app",
+      messagingSenderId: "609212813502",
+      appId: "1:609212813502:web:77e958780bed3680404eef",
+      measurementId: "G-P0VSW9S7L6"
+    };
+
+    let firebaseAuth = null;
+    let googleProvider = null;
+    try {
+      if (!firebase.apps.length) {
+        firebase.initializeApp(FIREBASE_CONFIG);
+      }
+      firebaseAuth = firebase.auth();
+      googleProvider = new firebase.auth.GoogleAuthProvider();
+      googleProvider.setCustomParameters({ prompt: "select_account" });
+    } catch (e) {
+      console.warn("Firebase başlatma uyarısı:", e);
+    }
+
+    // =========================================================================
+    // 2. 7. SINIF MÜFREDAT VERİSİ (2026-2027 TYMM / YILLIK PLAN ÇERÇEVESİ)
+    // =========================================================================
+    const CURRICULUM = {
+      matematik: {
+        id: "matematik",
+        ad: "Matematik",
+        soruSayisi: 20,
+        rozet: "Sayı Dedektifi",
+        grad: "from-indigo-500 via-blue-500 to-cyan-400",
+        border: "border-indigo-200 hover:border-indigo-400",
+        badgeBg: "bg-indigo-50 text-indigo-700",
+        konular: {
+          erken: [
+            "Tam sayılar ve mutlak değer",
+            "Tam sayılarla toplama ve çıkarma işlemleri",
+            "Tam sayılarla çarpma ve bölme işlemleri"
+          ],
+          kasim: [
+            "Tam sayılar ve mutlak değer",
+            "Rasyonel sayılar ve ondalık gösterimler (devirli ondalık gösterim)",
+            "Rasyonel sayılarda karşılaştırma ve sıralama",
+            "Rasyonel sayılarla toplama, çıkarma, çarpma ve bölme işlemleri",
+            "Rasyonel sayılarla çok adımlı işlemler ve problem çözme"
+          ],
+          genel: [
+            "Tam sayılar ve mutlak değer",
+            "Rasyonel sayılar ve ondalık gösterimler",
+            "Cebirsel ifadeler, eşitlik ve denklem kurma",
+            "Oran, orantı ve yüzdeler",
+            "Doğrular ve açılar, çokgenler, çember ve daire",
+            "Veri analizi ve cisimlerin farklı yönlerden görünümleri"
+          ]
+        }
+      },
+      turkce: {
+        id: "turkce",
+        ad: "Türkçe",
+        soruSayisi: 20,
+        rozet: "Kelime Ustası",
+        grad: "from-rose-500 via-pink-500 to-amber-400",
+        border: "border-rose-200 hover:border-rose-400",
+        badgeBg: "bg-rose-50 text-rose-700",
+        konular: {
+          erken: [
+            "Metnin yüzey anlamı ve derin anlamı",
+            "Kelime anlamını tahmin etme ve söz varlığı",
+            "İkilemeler ve temel noktalama işaretleri"
+          ],
+          kasim: [
+            "Metnin yüzey anlamı ve derin anlamı (çıkarım)",
+            "Kelime anlamını tahmin etme ve söz varlığı",
+            "İkilemeler, noktalı virgül ve üç nokta",
+            "Söz sanatları ve metin içi anlam ilişkileri",
+            "İsim ve fiil çekim ekleri"
+          ],
+          genel: [
+            "Metinde ana fikir, yardımcı fikir ve çıkarım",
+            "Söz varlığı, deyimler, atasözleri ve söz sanatları",
+            "Fiiller (kip, kişi, olumsuzluk, soru) ve zarflar",
+            "Düşünceyi geliştirme yolları ve metin türleri",
+            "Yazım kuralları ve noktalama işaretleri"
+          ]
+        }
+      },
+      fen_bilimleri: {
+        id: "fen_bilimleri",
+        ad: "Fen Bilimleri",
+        soruSayisi: 20,
+        rozet: "Kaşif Bilimci",
+        grad: "from-emerald-500 via-teal-500 to-cyan-400",
+        border: "border-emerald-200 hover:border-emerald-400",
+        badgeBg: "bg-emerald-50 text-emerald-700",
+        konular: {
+          erken: [
+            "Türkiye ve uzay araştırmaları, uzay teknolojileri",
+            "Yıldızların yaşamı, yıldız, takımyıldız, galaksi ve evren"
+          ],
+          kasim: [
+            "Türkiye ve uzay araştırmaları, uzay teknolojileri ve gözlem araçları",
+            "Yıldızların yaşamı, yıldız, takımyıldız, galaksi ve evren",
+            "Kuvvet, iş ve enerji ilişkisi (iş, joule, kinetik ve potansiyel enerji)",
+            "Enerji dönüşümleri ve enerjinin korunumu"
+          ],
+          genel: [
+            "Uzay araştırmaları ve evrenin yapısı",
+            "Kuvvet ve enerji (iş, kinetik ve potansiyel enerji dönüşümleri)",
+            "Saf maddeler ve karışımlar, maddenin yapısı",
+            "Işığın kırılması ve mercekler",
+            "Canlılarda üreme, büyüme ve gelişme",
+            "Elektrik devreleri ve sürdürülebilir yaşam"
+          ]
+        }
+      },
+      sosyal_bilgiler: {
+        id: "sosyal_bilgiler",
+        ad: "Sosyal Bilgiler",
+        soruSayisi: 10,
+        rozet: "Dünya Gezgini",
+        grad: "from-amber-500 via-orange-500 to-yellow-400",
+        border: "border-amber-200 hover:border-amber-400",
+        badgeBg: "bg-amber-50 text-amber-700",
+        konular: {
+          erken: [
+            "Etkili iletişim ve fırsat eşitliği",
+            "Toplumsal dayanışma ve sorumluluk"
+          ],
+          kasim: [
+            "Etkili iletişim, fırsat eşitliği ve toplumsal tutumlar",
+            "Küreselleşmenin insan ve toplum hayatındaki değişimi",
+            "Bölgesel ve küresel sorunların çözümünde Türkiye'nin rolü"
+          ],
+          genel: [
+            "Birlikte yaşamak ve iletişim becerileri",
+            "Evimiz dünya ve küresel bağlantılar",
+            "Ortak mirasımız ve tarihî gelişmeler",
+            "Yaşayan demokrasimiz, ekonomi ve teknoloji"
+          ]
+        }
+      },
+      din_kulturu: {
+        id: "din_kulturu",
+        ad: "Din Kültürü ve Ahlak Bilgisi",
+        soruSayisi: 10,
+        rozet: "Bilge Rehber",
+        grad: "from-violet-500 via-purple-500 to-fuchsia-400",
+        border: "border-violet-200 hover:border-violet-400",
+        badgeBg: "bg-violet-50 text-violet-700",
+        konular: {
+          erken: [
+            "Görülen ve görülemeyen varlıklar",
+            "Meleklerin özellikleri ve görevleri"
+          ],
+          kasim: [
+            "Meleklerin özellikleri ve görevleri",
+            "Ahiret inancı ve ahiret hayatının aşamaları",
+            "Ahiret inancının insan davranışlarına etkisi",
+            "Nâs Suresi ve anlamı"
+          ],
+          genel: [
+            "Melek ve ahiret inancı",
+            "Hac, umre ve kurban ibadeti",
+            "İslam düşüncesinde yorumlar",
+            "Peygamber olarak Hz. Muhammed ve yaşayan dünya dinleri"
+          ]
+        }
+      },
+      ingilizce: {
+        id: "ingilizce",
+        ad: "İngilizce",
+        soruSayisi: 10,
+        rozet: "Global Yıldız",
+        grad: "from-pink-500 via-fuchsia-500 to-indigo-400",
+        border: "border-pink-200 hover:border-pink-400",
+        badgeBg: "bg-pink-50 text-pink-700",
+        konular: {
+          erken: [
+            "Appearance and Personality (dış görünüş ve kişilik özellikleri)",
+            "Comparative adjectives (karşılaştırma sıfatları)"
+          ],
+          kasim: [
+            "Appearance and Personality (dış görünüş, kişilik, karşılaştırma sıfatları)",
+            "Sports (günlük rutinler, sıklık zarfları, How often)",
+            "Biographies (geçmiş zaman, doğum ve yaşam olayları)"
+          ],
+          genel: [
+            "Appearance and Personality & Sports",
+            "Biographies & Wild Animals",
+            "Television & Celebrations",
+            "Dreams, Public Buildings, Environment and Planets"
+          ]
+        }
+      }
+    };
+
+    // =========================================================================
+    // 3. UYGULAMA DURUMU (STATE)
+    // =========================================================================
+    const state = {
+      user: null, // { uid, name, email, photoURL }
+      authLoading: true,
+      authError: "",
+      view: "home", // "home" | "quiz" | "report"
+      selectedDate: "2026-11-24",
+      geminiApiKey: localStorage.getItem("maarif7_gemini_key") || "",
+      showSettings: false,
+      reports: JSON.parse(localStorage.getItem("maarif7_reports") || "[]"),
+      quiz: null
+      // quiz yapısı:
+      // {
+      //   subjectId, subjectName, mode: "initial" | "remediation",
+      //   roundNumber, questions: [...], currentIndex,
+      //   answers: { [qIndex]: optionIndex },
+      //   initialStats: null | { total, correct, wrong, wrongQuestions: [...] },
+      //   finished: false, isZeroWrong: false, loading: false, statusText: ""
+      // }
+    };
+
+    function getActiveTopicsForDate(subjectId, isoDate) {
+      const sub = CURRICULUM[subjectId];
+      if (!sub) return [];
+      const month = parseInt(isoDate.split("-")[1], 10);
+      if (month === 9 || month === 10) return sub.konular.erken;
+      if (month === 11 || month === 12 || month === 1) return sub.konular.kasim;
+      return sub.konular.genel;
+    }
+
+    function formatTurkishDate(isoDate) {
+      const parts = isoDate.split("-");
+      if (parts.length !== 3) return isoDate;
+      const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+      return d.toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
+    }
+
+    // =========================================================================
+    // 4. BAĞLAM TEMELLİ SORU ÜRETİMİ (GEMINI API + YEREL SENARYO MOTORU)
+    // =========================================================================
+    function generateLocalContextualQuestion(subjectId, topic, index, variantSeed = 0) {
+      const scenarios = {
+        matematik: [
+          {
+            senaryo: "Denizli'de sabah hava sıcaklığı -3 °C ölçüldü. Öğlen sıcaklığı 7 °C artıp akşam tekrar 4 °C azaldı.",
+            soru: `(${topic}) Bu senaryoya göre akşam ölçülecek hava sıcaklığını gösteren işlem ve sonucu hangisidir? (Varyant #${variantSeed + 1})`,
+            secenekler: ["(-3 + 7) - 4 = 0 °C", "(-3 - 7) + 4 = -6 °C", "(3 + 7) - 4 = 6 °C", "(-3 + 7) + 4 = 8 °C"],
+            dogru: 0,
+            aciklama: "Sabah -3 °C olan sıcaklık 7 °C artınca +4 °C olur; akşam 4 °C azalınca 0 °C bulunur."
+          },
+          {
+            senaryo: "Bir okul kütüphanesindeki kitabın sayfa sayısının 3/8'i ilk hafta, kalan sayfanın yarısı ikinci hafta okunuyor.",
+            soru: `(${topic}) Kitabın tamamı 160 sayfa ise ikinci hafta okunan sayfa sayısı kaçtır? (Varyant #${variantSeed + 1})`,
+            secenekler: ["50 sayfa", "60 sayfa", "80 sayfa", "40 sayfa"],
+            dogru: 0,
+            aciklama: "160 sayfanın 3/8'i 60 sayfadır. Kalan 100 sayfanın yarısı 50 sayfa eder."
+          },
+          {
+            senaryo: "Bir dalgıç deniz seviyesinin 12,5 metre altında dalış yaparken önce 4,2 metre yukarı çıkıyor, sonra 6,8 metre derine iniyor.",
+            soru: `(${topic}) Dalgıcın son konumunu ifade eden rasyonel değer hangisidir? (Varyant #${variantSeed + 1})`,
+            secenekler: ["-15,1 metre", "-14,1 metre", "-11,5 metre", "-23,5 metre"],
+            dogru: 0,
+            aciklama: "-12,5 + 4,2 - 6,8 = -15,1 metre derinlik elde edilir."
+          }
+        ],
+        turkce: [
+          {
+            senaryo: "\"Küçük adımlarla başlayan büyük yürüyüşler, sabırla atılan her adımda kendi rotasını çizer; aceleyle koşulan yollarsa ilk yokuşta nefessiz kalır.\"",
+            soru: `(${topic}) Bu cümleden kesin olarak çıkarılabilecek bağlam anlamı hangisidir? (Varyant #${variantSeed + 1})`,
